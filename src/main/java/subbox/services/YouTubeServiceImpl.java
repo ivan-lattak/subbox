@@ -22,9 +22,12 @@ import java.util.Optional;
 public class YouTubeServiceImpl implements YouTubeService {
 
     private static final long MAX_RESULTS = 50;
+    @NotNull
     private static final NetHttpTransport HTTP_TRANSPORT = getHttpTransport();
+    @NotNull
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
+    @NotNull
     private static NetHttpTransport getHttpTransport() {
         try {
             return GoogleNetHttpTransport.newTrustedTransport();
@@ -35,6 +38,7 @@ public class YouTubeServiceImpl implements YouTubeService {
 
     private YouTube youTube;
 
+    @NotNull
     private YouTube getYoutube() {
         if (youTube == null) {
             youTube = new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, request -> {})

@@ -1,7 +1,7 @@
-package subbox.util;
+package subbox.services;
 
 import com.google.api.services.youtube.model.*;
-import subbox.services.YouTubeService;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Iterator;
 import java.util.List;
@@ -9,7 +9,9 @@ import java.util.NoSuchElementException;
 
 public class UploadedVideoIterator implements Iterator<Video> {
 
+    @NotNull
     private final YouTubeService youTubeService;
+    @NotNull
     private final String channelId;
 
     private String uploadPlaylistId = null;
@@ -18,7 +20,7 @@ public class UploadedVideoIterator implements Iterator<Video> {
     private boolean hasNextPage = true;
     private int nextVideo = 0;
 
-    public UploadedVideoIterator(YouTubeService youTubeService, String channelId) {
+    public UploadedVideoIterator(@NotNull YouTubeService youTubeService, @NotNull String channelId) {
         this.youTubeService = youTubeService;
         this.channelId = channelId;
     }
@@ -36,6 +38,7 @@ public class UploadedVideoIterator implements Iterator<Video> {
     }
 
     @Override
+    @NotNull
     public Video next() {
         if (!hasNext()) {
             throw new NoSuchElementException();
@@ -50,7 +53,8 @@ public class UploadedVideoIterator implements Iterator<Video> {
         getNextPage();
     }
 
-    private String getUploadPlaylistId(String channelId) {
+    @NotNull
+    private String getUploadPlaylistId(@NotNull String channelId) {
         return youTubeService.getChannelForId(channelId)
                 .map(Channel::getContentDetails)
                 .map(ChannelContentDetails::getRelatedPlaylists)

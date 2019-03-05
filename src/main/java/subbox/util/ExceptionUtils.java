@@ -1,11 +1,13 @@
 package subbox.util;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
 public class ExceptionUtils {
 
-    public static <T> T wrapIOException(IOExceptionCallable<T> callable) {
+    public static <T> T wrapIOException(@NotNull IOExceptionCallable<T> callable) {
         try {
             return callable.call();
         } catch (IOException e) {
@@ -13,7 +15,7 @@ public class ExceptionUtils {
         }
     }
 
-    public static void wrapIOException(IOExceptionRunnable runnable) {
+    public static void wrapIOException(@NotNull IOExceptionRunnable runnable) {
         try {
             runnable.run();
         } catch (IOException e) {
