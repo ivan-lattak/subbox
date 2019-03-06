@@ -6,10 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import subbox.services.UploadedVideoIterator;
 import subbox.services.YouTubeService;
-import subbox.util.BadRequest;
-import subbox.util.MergingIterator;
+import subbox.util.iterators.Iterators;
 
 import java.util.*;
 import java.util.stream.BaseStream;
@@ -18,6 +18,7 @@ import java.util.stream.StreamSupport;
 
 import static java.util.Comparator.comparingLong;
 import static java.util.stream.Collectors.toList;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 public class SubBoxController {
@@ -33,10 +34,10 @@ public class SubBoxController {
     @GetMapping("/videos")
     public List<Video> getVideos(@NotNull @RequestParam("channelIds") List<String> channelIds) {
         if (channelIds.isEmpty()) {
-            throw new BadRequest("channelIds must not be empty");
+            throw new ResponseStatusException(BAD_REQUEST, "channelIds must not be empty");
         }
         if (channelIds.stream().anyMatch(String::isBlank)) {
-            throw new BadRequest("none of the specified channelIds may be blank");
+            throw new ResponseStatusException(BAD_REQUEST, "none of the specified channelIds may be blank");
         }
 
         List<Iterator<Video>> iterators = channelIds.stream()
@@ -59,7 +60,7 @@ public class SubBoxController {
     @NotNull
     private Stream<Video> mergeSorted(@NotNull List<Iterator<Video>> iterators) {
         return iterators.stream()
-                .reduce((i1, i2) -> new MergingIterator<>(i1, i2, BY_PUBLISH_TIME_DESC))
+                .reduce((i1, i2) -> Iterators.mergeSorted(i1, i2, BY_PUBLISH_TIME_DESC))
                 .map(it -> Spliterators.spliteratorUnknownSize(it, 0))
                 .stream()
                 .flatMap(spliterator -> StreamSupport.stream(spliterator, false));
