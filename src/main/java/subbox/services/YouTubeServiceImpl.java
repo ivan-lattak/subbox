@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import subbox.SubBoxApplication;
-import subbox.util.ExceptionUtils;
+import subbox.util.Exceptions;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -52,7 +52,7 @@ public class YouTubeServiceImpl implements YouTubeService {
     @NotNull
     @Override
     public PlaylistItemListResponse getPlaylistItems(@NotNull String uploadPlaylistId, @Nullable String pageToken) {
-        return ExceptionUtils.wrapIOException(() -> getYoutube()
+        return Exceptions.wrapIOException(() -> getYoutube()
                 .playlistItems()
                 .list("contentDetails")
                 .setPlaylistId(uploadPlaylistId)
@@ -65,7 +65,7 @@ public class YouTubeServiceImpl implements YouTubeService {
     @Override
     public VideoListResponse getVideosForIds(@NotNull String... videoIds) {
         String commaSeparatedVideoIds = String.join(",", videoIds);
-        return ExceptionUtils.wrapIOException(() -> getYoutube()
+        return Exceptions.wrapIOException(() -> getYoutube()
                 .videos()
                 .list("snippet")
                 .setId(commaSeparatedVideoIds)
@@ -75,7 +75,7 @@ public class YouTubeServiceImpl implements YouTubeService {
     @NotNull
     @Override
     public Optional<Channel> getChannelForId(@NotNull String channelId) {
-        return ExceptionUtils.wrapIOException(() -> getYoutube()
+        return Exceptions.wrapIOException(() -> getYoutube()
                 .channels()
                 .list("contentDetails")
                 .setId(channelId)

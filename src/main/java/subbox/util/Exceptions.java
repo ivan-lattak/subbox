@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-public class ExceptionUtils {
+public class Exceptions {
 
     public static <T> T wrapIOException(@NotNull IOExceptionCallable<T> callable) {
         try {

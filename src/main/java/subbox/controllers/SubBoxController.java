@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import subbox.services.AsyncVideoService;
 import subbox.services.UploadedVideoIterator;
 import subbox.services.YouTubeService;
 import subbox.util.iterators.Iterators;
@@ -29,6 +30,9 @@ public class SubBoxController {
 
     @Autowired
     private YouTubeService youTubeService;
+
+    @Autowired
+    private AsyncVideoService videoService;
 
     @NotNull
     @GetMapping("/videos")
