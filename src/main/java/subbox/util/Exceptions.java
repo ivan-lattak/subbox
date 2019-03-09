@@ -5,7 +5,10 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-public class Exceptions {
+public final class Exceptions {
+
+    private Exceptions() {
+    }
 
     public static <T> T wrapIOException(@NotNull IOExceptionCallable<T> callable) {
         try {

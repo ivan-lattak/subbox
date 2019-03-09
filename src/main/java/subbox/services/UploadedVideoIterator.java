@@ -55,7 +55,7 @@ public class UploadedVideoIterator implements Iterator<Video> {
 
     @NotNull
     private String getUploadPlaylistId(@NotNull String channelId) {
-        return youTubeService.getChannelForId(channelId)
+        return youTubeService.getChannel(channelId)
                 .map(Channel::getContentDetails)
                 .map(ChannelContentDetails::getRelatedPlaylists)
                 .map(ChannelContentDetails.RelatedPlaylists::getUploads)
@@ -72,7 +72,7 @@ public class UploadedVideoIterator implements Iterator<Video> {
                 .map(PlaylistItem::getContentDetails)
                 .map(PlaylistItemContentDetails::getVideoId)
                 .toArray(String[]::new);
-        videos = youTubeService.getVideosForIds(videoIds)
+        videos = youTubeService.getVideos(videoIds)
                 .getItems();
         nextVideo = 0;
     }

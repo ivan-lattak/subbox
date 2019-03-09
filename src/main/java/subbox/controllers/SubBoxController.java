@@ -3,6 +3,7 @@ package subbox.controllers;
 import com.google.api.services.youtube.model.Video;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,6 +13,7 @@ import subbox.services.UploadedVideoIterator;
 import subbox.services.YouTubeService;
 import subbox.util.iterators.Iterators;
 
+import javax.validation.constraints.*;
 import java.util.*;
 import java.util.stream.BaseStream;
 import java.util.stream.Stream;
@@ -22,6 +24,7 @@ import static java.util.stream.Collectors.toList;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
+@Validated
 public class SubBoxController {
 
     @NotNull
@@ -35,7 +38,7 @@ public class SubBoxController {
     private AsyncVideoService videoService;
 
     @NotNull
-    @GetMapping("/videos")
+    @GetMapping("/videosOld")
     public List<Video> getVideos(@NotNull @RequestParam("channelIds") List<String> channelIds) {
         if (channelIds.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "channelIds must not be empty");
@@ -51,6 +54,15 @@ public class SubBoxController {
 
         return mergeSorted(iterators)
                 .collect(toList());
+    }
+
+    @NotNull
+    @GetMapping("/videos")
+    public List<Video> videos(@RequestParam("channelIds") @NotNull @NotEmpty Set<@NotBlank String> channelIds,
+                              @RequestParam(value = "perPage", defaultValue = "20") @Positive @Max(50) int perPage,
+                              @RequestParam(value = "page", defaultValue = "0") @PositiveOrZero int page) {
+        videoService.getUploadedVideos(new ArrayList<>(channelIds));
+        return List.of();
     }
 
     @NotNull

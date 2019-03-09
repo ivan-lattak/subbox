@@ -27,8 +27,11 @@ dependencies {
     compile 'org.jetbrains:annotations:17.0.0'
 
     compile 'org.springframework:spring-web:5.1.5.RELEASE'
+    compile 'org.springframework:spring-context-support:5.1.5.RELEASE'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
     compile 'com.google.apis:google-api-services-youtube:v3-rev206-1.25.0'
+
+    compile 'com.github.ben-manes.caffeine:caffeine:2.7.0'
 }
