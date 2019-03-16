@@ -32,6 +32,8 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
     compile 'com.google.apis:google-api-services-youtube:v3-rev206-1.25.0'
+    
+    compile 'org.apache.commons:commons-lang3:3.8.1'
 
     compile 'com.github.ben-manes.caffeine:caffeine:2.7.0'
 }

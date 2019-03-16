@@ -4,11 +4,16 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.api.services.youtube.model.Playlist;
 import com.google.api.services.youtube.model.Video;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import subbox.SubBoxApplication;
 import subbox.model.PlaylistMetadata;
 import subbox.util.MoreExecutors;
 
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -16,13 +21,17 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.function.Function;
 
-import static java.time.temporal.ChronoUnit.DAYS;
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 class RefreshingVideoCache {
 
     @NotNull
-    private static final Duration EVICTION_THRESHOLD = Duration.of(1, DAYS);
+    private static final Duration EVICTION_THRESHOLD = Duration.parse(SubBoxApplication.getProperty("subbox.cache.eviction-threshold"));
+    @NotNull
+    private static final Duration UPDATE_PERIOD = Duration.parse(SubBoxApplication.getProperty("subbox.cache.update-period"));
+
+    @NotNull
+    private static final Logger log = LoggerFactory.getLogger(RefreshingVideoCache.class);
 
     @NotNull
     private final ExecutorService LOAD_EXECUTOR = MoreExecutors.newBoundedCachedThreadPool(32);
@@ -30,7 +39,7 @@ class RefreshingVideoCache {
     @NotNull
     private final ConcurrentHashMap<String, PlaylistMetadata> metadataCache = new ConcurrentHashMap<>();
     @NotNull
-    private final LoadingCache<String, Future<List<Video>>> delegateCache;
+    private final LoadingCache<String, Future<List<Video>>> playlistCache;
 
     @NotNull
     private final Function<List<String>, List<Playlist>> bulkPlaylistDownloader;
@@ -42,22 +51,22 @@ class RefreshingVideoCache {
         this.bulkPlaylistDownloader = bulkPlaylistDownloader;
         this.videoDownloader = videoDownloader;
 
-        this.delegateCache = Caffeine.newBuilder()
+        this.playlistCache = Caffeine.newBuilder()
                 .build(playlistId -> LOAD_EXECUTOR.submit(() -> this.videoDownloader.apply(playlistId)));
 
-        ScheduledExecutorService updateAndEvictExecutor = Executors.newSingleThreadScheduledExecutor();
-        updateAndEvictExecutor.scheduleAtFixedRate(this::updateAndEvict, 0, 1, MINUTES);
+        ScheduledExecutorService evictAndRefreshExecutor = Executors.newSingleThreadScheduledExecutor();
+        evictAndRefreshExecutor.scheduleAtFixedRate(this::evictAndRefresh, UPDATE_PERIOD.toNanos(), UPDATE_PERIOD.toNanos(), NANOSECONDS);
     }
 
     @NotNull
     Future<List<List<Video>>> get(@NotNull List<String> playlistIds) {
         updateMetadataCache(playlistIds);
-        return allOf(delegateCache.getAll(playlistIds).values());
+        return allOf(playlistCache.getAll(playlistIds).values());
     }
 
     private void updateMetadataCache(@NotNull List<String> playlistIds) {
         List<String> playlistIdsToDownload = filterAbsentIds(playlistIds);
-        downloadPlaylists(playlistIdsToDownload);
+        getMetadata(playlistIdsToDownload);
     }
 
     @NotNull
@@ -74,7 +83,7 @@ class RefreshingVideoCache {
         return absentPlaylistIds;
     }
 
-    private void downloadPlaylists(@NotNull List<String> playlistIds) {
+    private void getMetadata(@NotNull List<String> playlistIds) {
         List<Playlist> downloadedPlaylists = bulkPlaylistDownloader.apply(playlistIds);
         for (int i = 0; i < playlistIds.size(); i++) {
             String playlistETag = downloadedPlaylists.get(i).getEtag();
@@ -83,13 +92,37 @@ class RefreshingVideoCache {
         }
     }
 
-    private void updateAndEvict() {
-        metadataCache.entrySet()
-                .removeIf(entry ->
-                        entry.getValue().isOlderThan(EVICTION_THRESHOLD) ||
-                                delegateCache.getIfPresent(entry.getKey()) == null);
-        delegateCache.asMap().keySet().removeIf(playlistId -> !metadataCache.containsKey(playlistId));
+    private void evictAndRefresh() {
+        ZonedDateTime start = ZonedDateTime.now();
+        log.debug("evictAndRefresh: evicting invalid and expired entries");
+        log.debug("evictAndRefresh: {} metadata and {} playlists present before eviction", metadataCache.size(), playlistCache.estimatedSize());
 
+        MutableInt evictedMetadata = new MutableInt();
+        MutableInt evictedPlaylists = new MutableInt();
+        metadataCache.entrySet()
+                .removeIf(entry -> {
+                    if (entry.getValue().isOlderThan(EVICTION_THRESHOLD) ||
+                            playlistCache.getIfPresent(entry.getKey()) == null) {
+                        evictedMetadata.increment();
+                        return true;
+                    }
+                    return false;
+                });
+        playlistCache.asMap()
+                .keySet()
+                .removeIf(playlistId -> {
+                    if (!metadataCache.containsKey(playlistId)) {
+                        evictedPlaylists.increment();
+                        return true;
+                    }
+                    return false;
+                });
+
+        log.debug("evictAndRefresh: evicted {} metadata and {} playlists", evictedMetadata, evictedPlaylists);
+        log.debug("evictAndRefresh: {} metadata and {} playlists present after eviction", metadataCache.size(), playlistCache.estimatedSize());
+        log.debug("evictAndRefresh: refreshing stale playlists");
+
+        MutableInt refreshedPlaylists = new MutableInt();
         List<Playlist> playlists = bulkPlaylistDownloader.apply(new ArrayList<>(metadataCache.keySet()));
         for (Playlist playlist : playlists) {
             String id = playlist.getId();
@@ -98,9 +131,13 @@ class RefreshingVideoCache {
                 continue;
             }
 
+            refreshedPlaylists.increment();
             cachedPlaylist.setETag(playlist.getEtag());
-            delegateCache.refresh(id);
+            playlistCache.refresh(id);
         }
+
+        log.debug("evictAndRefresh: refreshed {} playlists", refreshedPlaylists);
+        log.debug("evictAndRefresh: finished in {} ms", Duration.between(start, ZonedDateTime.now()).toNanos() / 1_000_000.0);
     }
 
     @NotNull
