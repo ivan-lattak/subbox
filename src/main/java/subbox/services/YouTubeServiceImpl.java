@@ -42,11 +42,11 @@ public class YouTubeServiceImpl implements YouTubeService {
     }
 
     @NotNull
-    private final ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(() -> new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, request -> {
-    })
-            .setYouTubeRequestInitializer(new YouTubeRequestInitializer(SubBoxApplication.getProperty("subbox.api.key")))
-            .setApplicationName(SubBoxApplication.getProperty("subbox.app.name"))
-            .build());
+    private final ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(
+            () -> new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, null)
+                    .setYouTubeRequestInitializer(new YouTubeRequestInitializer(SubBoxApplication.getProperty("subbox.api.key")))
+                    .setApplicationName(SubBoxApplication.getProperty("subbox.app.name"))
+                    .build());
 
     @NotNull
     private YouTube getYoutube() {
@@ -98,11 +98,11 @@ public class YouTubeServiceImpl implements YouTubeService {
     }
 
     @NotNull
-    private PlaylistItemListResponse getPlaylistItems(@NotNull String uploadPlaylistId, @Nullable String pageToken) {
+    private PlaylistItemListResponse getPlaylistItems(@NotNull String playlistId, @Nullable String pageToken) {
         return Exceptions.wrapIOException(() -> getYoutube()
                 .playlistItems()
                 .list("contentDetails")
-                .setPlaylistId(uploadPlaylistId)
+                .setPlaylistId(playlistId)
                 .setPageToken(pageToken)
                 .setMaxResults(MAX_RESULTS_L)
                 .setFields("nextPageToken,items/contentDetails/videoId")
