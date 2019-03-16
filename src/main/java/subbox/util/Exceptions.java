@@ -4,40 +4,29 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.Callable;
 
 public final class Exceptions {
 
     private Exceptions() {
     }
 
-    public static <T> T wrapIOException(@NotNull IOExceptionCallable<T> callable) {
+    public static <T> T wrapCheckedException(@NotNull Callable<T> callable) {
         try {
             return callable.call();
+        } catch (RuntimeException e) {
+            throw e;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        } catch (Exception e) {
+            throw new CheckedExceptionWrapper(e);
         }
     }
 
-    public static void wrapIOException(@NotNull IOExceptionRunnable runnable) {
-        try {
-            runnable.run();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+    private static class CheckedExceptionWrapper extends RuntimeException {
+        CheckedExceptionWrapper(Exception e) {
+            super(e);
         }
-    }
-
-    @FunctionalInterface
-    public interface IOExceptionCallable<T> {
-
-        T call() throws IOException;
-
-    }
-
-    @FunctionalInterface
-    public interface IOExceptionRunnable {
-
-        void run() throws IOException;
-
     }
 
 }

@@ -63,7 +63,7 @@ public class YouTubeServiceImpl implements YouTubeService {
     @NotNull
     @Override
     public Optional<Channel> getChannel(@NotNull String channelId) {
-        return Exceptions.wrapIOException(() -> getYoutube()
+        return Exceptions.wrapCheckedException(() -> getYoutube()
                 .channels()
                 .list("contentDetails")
                 .setId(channelId)
@@ -78,7 +78,7 @@ public class YouTubeServiceImpl implements YouTubeService {
     @Override
     public List<Channel> getChannels(@NotNull List<String> channelIds) {
         return batches(channelIds)
-                .map(batch -> Exceptions.wrapIOException(() -> getYoutube()
+                .map(batch -> Exceptions.wrapCheckedException(() -> getYoutube()
                         .channels()
                         .list("contentDetails")
                         .setId(String.join(",", batch))
@@ -93,7 +93,7 @@ public class YouTubeServiceImpl implements YouTubeService {
     @Override
     public List<Playlist> getPlaylists(@NotNull List<String> playlistIds) {
         return batches(playlistIds)
-                .map(batch -> Exceptions.wrapIOException(() -> getYoutube()
+                .map(batch -> Exceptions.wrapCheckedException(() -> getYoutube()
                         .playlists()
                         .list("id")
                         .setId(String.join(",", batch))
@@ -106,7 +106,7 @@ public class YouTubeServiceImpl implements YouTubeService {
 
     @NotNull
     private PlaylistItemListResponse getPlaylistItems(@NotNull String playlistId, @Nullable String pageToken) {
-        return Exceptions.wrapIOException(() -> getYoutube()
+        return Exceptions.wrapCheckedException(() -> getYoutube()
                 .playlistItems()
                 .list("contentDetails")
                 .setPlaylistId(playlistId)
@@ -140,7 +140,7 @@ public class YouTubeServiceImpl implements YouTubeService {
         ZonedDateTime startDownload = ZonedDateTime.now();
 
         List<Video> downloadedVideos = batches(videoIds)
-                .map(batch -> Exceptions.wrapIOException(() -> getYoutube()
+                .map(batch -> Exceptions.wrapCheckedException(() -> getYoutube()
                         .videos()
                         .list("snippet")
                         .setId(String.join(",", batch))
