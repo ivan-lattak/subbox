@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collector;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -41,7 +42,7 @@ public class YouTubeServiceImpl implements YouTubeService {
     }
 
     @NotNull
-    private ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(() -> new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, request -> {
+    private final ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(() -> new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, request -> {
     })
             .setYouTubeRequestInitializer(new YouTubeRequestInitializer(SubBoxApplication.getProperty("subbox.api.key")))
             .setApplicationName(SubBoxApplication.getProperty("subbox.app.name"))
@@ -75,12 +76,10 @@ public class YouTubeServiceImpl implements YouTubeService {
                         .list("contentDetails")
                         .setId(String.join(",", batch))
                         .setMaxResults((long) batch.size())
+                        .setFields("items(id,contentDetails/relatedPlaylists/uploads)")
                         .execute()
                         .getItems()))
-                .reduce(new ArrayList<>(), (l1, l2) -> {
-                    l1.addAll(l2);
-                    return l1;
-                });
+                .collect(joiningLists());
     }
 
     @NotNull
@@ -89,44 +88,54 @@ public class YouTubeServiceImpl implements YouTubeService {
         return batches(playlistIds)
                 .map(batch -> Exceptions.wrapIOException(() -> getYoutube()
                         .playlists()
-                        .list("")
+                        .list("id")
                         .setId(String.join(",", batch))
                         .setMaxResults((long) batch.size())
+                        .setFields("items(id,etag)")
                         .execute()
                         .getItems()))
-                .reduce(new ArrayList<>(), (l1, l2) -> {
-                    l1.addAll(l2);
-                    return l1;
-                });
+                .collect(joiningLists());
     }
 
     @NotNull
-    @Override
-    public PlaylistItemListResponse getPlaylistItems(@NotNull String uploadPlaylistId, @Nullable String pageToken) {
+    private PlaylistItemListResponse getPlaylistItems(@NotNull String uploadPlaylistId, @Nullable String pageToken) {
         return Exceptions.wrapIOException(() -> getYoutube()
                 .playlistItems()
                 .list("contentDetails")
                 .setPlaylistId(uploadPlaylistId)
                 .setPageToken(pageToken)
                 .setMaxResults(MAX_RESULTS_L)
-                .execute());
-    }
-
-    @NotNull
-    @Override
-    public VideoListResponse getVideos(@NotNull String... videoIds) {
-        String commaSeparatedVideoIds = String.join(",", videoIds);
-        return Exceptions.wrapIOException(() -> getYoutube()
-                .videos()
-                .list("snippet")
-                .setId(commaSeparatedVideoIds)
+                .setFields("nextPageToken,items/contentDetails/videoId")
                 .execute());
     }
 
     @NotNull
     @Override
     public List<Video> getVideos(@NotNull String playlistId) {
-        return List.of();
+        List<String> videoIds = new ArrayList<>();
+        String nextPageToken = null;
+        do {
+            PlaylistItemListResponse response = getPlaylistItems(playlistId, nextPageToken);
+            nextPageToken = response.getNextPageToken();
+            response.getItems()
+                    .stream()
+                    .map(PlaylistItem::getContentDetails)
+                    .map(PlaylistItemContentDetails::getVideoId)
+                    .forEach(videoIds::add);
+        } while (nextPageToken != null);
+
+        List<Video> downloadedVideos = batches(videoIds)
+                .map(batch -> Exceptions.wrapIOException(() -> getYoutube()
+                        .videos()
+                        .list("snippet")
+                        .setId(String.join(",", batch))
+                        .setMaxResults((long) batch.size())
+                        .execute()
+                        .getItems()))
+                .collect(joiningLists());
+
+        downloadedVideos.sort(YouTubeService.DEFAULT_VIDEO_COMPARATOR);
+        return downloadedVideos;
     }
 
     @NotNull
@@ -143,6 +152,14 @@ public class YouTubeServiceImpl implements YouTubeService {
         return IntStream.rangeClosed(0, fullBatches)
                 .mapToObj(n ->
                         list.subList(n * MAX_RESULTS, n == fullBatches ? size : (n + 1) * MAX_RESULTS));
+    }
+
+    @NotNull
+    private static <T> Collector<List<T>, ?, List<T>> joiningLists() {
+        return Collector.of(ArrayList::new, List::addAll, (List<T> l1, List<T> l2) -> {
+            l1.addAll(l2);
+            return l1;
+        });
     }
 
 }

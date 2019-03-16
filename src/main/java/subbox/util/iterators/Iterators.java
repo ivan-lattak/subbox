@@ -2,17 +2,20 @@ package subbox.util.iterators;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 public class Iterators {
 
     private Iterators() {
     }
 
-    static class PeekingIter<T> implements PeekingIterator<T> {
+    @NotNull
+    @SuppressWarnings("WeakerAccess")
+    public static <T> PeekingIterator<T> peekingIterator(@NotNull Iterator<? extends T> iterator) {
+        return new PeekingIter<>(iterator);
+    }
 
+    private static class PeekingIter<T> implements PeekingIterator<T> {
         @NotNull
         private final Iterator<? extends T> iterator;
 
@@ -55,25 +58,44 @@ public class Iterators {
 
             return buffered;
         }
-
     }
 
     @NotNull
-    public static <T> PeekingIterator<T> peekingIterator(@NotNull Iterator<? extends T> iterator) {
-        return new PeekingIter<>(iterator);
+    public static <T> Iterator<T> mergeSorted(@NotNull List<? extends Iterator<T>> iterators,
+                                              @NotNull Comparator<? super T> comparator) {
+        if (iterators.isEmpty()) {
+            return empty();
+        }
+
+        List<? extends Iterator<T>> iters = iterators;
+        while (iters.size() > 1) {
+            List<Iterator<T>> newIters = new ArrayList<>();
+
+            for (int i = 0; i < iters.size(); i += 2) {
+                if (i == iters.size() - 1) {
+                    newIters.add(iters.get(i));
+                    continue;
+                }
+
+                newIters.add(new MergingIter<>(iters.get(i), iters.get(i + 1), comparator));
+            }
+
+            iters = newIters;
+        }
+
+        return iters.get(0);
     }
 
-    static class MergingIter<T> implements Iterator<T> {
-
+    private static class MergingIter<T> implements Iterator<T> {
         @NotNull
-        private final PeekingIterator<? extends T> left;
+        private final PeekingIterator<T> left;
         @NotNull
-        private final PeekingIterator<? extends T> right;
+        private final PeekingIterator<T> right;
         @NotNull
         private final Comparator<? super T> comparator;
 
-        MergingIter(@NotNull Iterator<? extends T> left,
-                    @NotNull Iterator<? extends T> right,
+        MergingIter(@NotNull Iterator<T> left,
+                    @NotNull Iterator<T> right,
                     @NotNull Comparator<? super T> comparator) {
             this.left = peekingIterator(left);
             this.right = peekingIterator(right);
@@ -106,13 +128,22 @@ public class Iterators {
             }
             return right.next();
         }
-
     }
 
     @NotNull
-    public static <T> Iterator<T> mergeSorted(@NotNull Iterator<? extends T> left,
-                                              @NotNull Iterator<? extends T> right,
-                                              @NotNull Comparator<? super T> comparator) {
-        return new MergingIter<>(left, right, comparator);
+    @SuppressWarnings("WeakerAccess")
+    public static <T> Iterator<T> empty() {
+        return new Iterator<>() {
+            @Override
+            public boolean hasNext() {
+                return false;
+            }
+
+            @Override
+            public T next() {
+                throw new NoSuchElementException();
+            }
+        };
     }
+
 }

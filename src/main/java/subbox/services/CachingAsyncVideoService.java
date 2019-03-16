@@ -10,10 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
 import java.util.concurrent.Future;
 import java.util.stream.StreamSupport;
 
@@ -26,29 +23,47 @@ import static java.util.stream.Collectors.toMap;
 public class CachingAsyncVideoService implements AsyncVideoService {
 
     @Autowired
-    private YouTubeService youTubeService;
+    private final YouTubeService youTubeService;
 
     @NotNull
     private final LoadingCache<String, Optional<Channel>> channelCache = Caffeine.newBuilder()
             .expireAfterWrite(1, DAYS)
             .build(new ChannelCacheLoader());
     @NotNull
-    private final RefreshingVideoCache videoCache = new RefreshingVideoCache(youTubeService::getPlaylists, youTubeService::getVideos);
+    private final RefreshingVideoCache videoCache;
+
+    @Autowired
+    public CachingAsyncVideoService(@NotNull YouTubeService youTubeService) {
+        this.youTubeService = youTubeService;
+        this.videoCache = new RefreshingVideoCache(youTubeService::getPlaylists, youTubeService::getVideos);
+    }
 
     @NotNull
     @Override
     public Future<List<List<Video>>> getUploadedVideos(@NotNull List<String> channelIds) {
         Map<String, Optional<Channel>> channels = channelCache.getAll(channelIds);
-        // TODO: 8.3.19 verify all channels exist
+        checkChannelsPresent(channels);
 
-        videoCache.get(channels.values()
+        return videoCache.get(channels.values()
                 .stream()
-                .map(Optional::orElseThrow)
+                .map(Optional::get)
                 .map(Channel::getContentDetails)
                 .map(ChannelContentDetails::getRelatedPlaylists)
                 .map(ChannelContentDetails.RelatedPlaylists::getUploads)
                 .collect(toList()));
-        return CompletableFuture.failedFuture(new Throwable());
+    }
+
+    private void checkChannelsPresent(Map<String, Optional<Channel>> channels) {
+        List<String> nonexistentChannels = channels.entrySet()
+                .stream()
+                .filter(entry -> entry.getValue().isEmpty())
+                .map(Map.Entry::getKey)
+                .collect(toList());
+
+        if (!nonexistentChannels.isEmpty()) {
+            String exceptionMessage = "Channels not found: " + String.join(", ", nonexistentChannels);
+            throw new ChannelNotFoundException(exceptionMessage);
+        }
     }
 
     private class ChannelCacheLoader implements CacheLoader<String, Optional<Channel>> {
@@ -70,17 +85,20 @@ public class CachingAsyncVideoService implements AsyncVideoService {
             if (channelIds instanceof List) {
                 return (List<String>) channelIds;
             }
+            if (channelIds instanceof Collection) {
+                return new ArrayList<>((Collection<String>) channelIds);
+            }
             return StreamSupport.stream(channelIds.spliterator(), false)
                     .collect(toList());
         }
 
         @NotNull
         private Map<String, Optional<Channel>> bulkLoadChannels(List<String> ids) {
-            List<Channel> channels = youTubeService.getChannels(ids);
+            Map<String, Channel> foundChannels = youTubeService.getChannels(ids)
+                    .stream()
+                    .collect(toMap(Channel::getId, identity()));
             return ids.stream()
-                    .collect(toMap(identity(), id -> channels.stream()
-                            .filter(channel -> channel.getId().equals(id))
-                            .findFirst()));
+                    .collect(toMap(identity(), id -> Optional.ofNullable(foundChannels.get(id))));
         }
     }
 

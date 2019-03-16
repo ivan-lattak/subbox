@@ -1,13 +1,21 @@
 package subbox.services;
 
-import com.google.api.services.youtube.model.*;
+import com.google.api.services.youtube.model.Channel;
+import com.google.api.services.youtube.model.Playlist;
+import com.google.api.services.youtube.model.Video;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Comparator.comparingLong;
+
 public interface YouTubeService {
+
+    @NotNull
+    Comparator<Video> DEFAULT_VIDEO_COMPARATOR = comparingLong((Video video) ->
+            video.getSnippet().getPublishedAt().getValue()).reversed();
 
     @NotNull
     Optional<Channel> getChannel(@NotNull String channelId);
@@ -17,12 +25,6 @@ public interface YouTubeService {
 
     @NotNull
     List<Playlist> getPlaylists(@NotNull List<String> playlistIds);
-
-    @NotNull
-    PlaylistItemListResponse getPlaylistItems(@NotNull String uploadPlaylistId, @Nullable String pageToken);
-
-    @NotNull
-    VideoListResponse getVideos(@NotNull String... videoIds);
 
     @NotNull
     List<Video> getVideos(@NotNull String playlistId);

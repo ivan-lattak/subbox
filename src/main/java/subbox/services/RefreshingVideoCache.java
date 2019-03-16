@@ -10,6 +10,7 @@ import subbox.util.MoreExecutors;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -18,13 +19,13 @@ import java.util.function.Function;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
-public class RefreshingVideoCache {
+class RefreshingVideoCache {
 
     @NotNull
     private static final Duration EVICTION_THRESHOLD = Duration.of(1, DAYS);
 
     @NotNull
-    private final ExecutorService LOAD_EXECUTOR = MoreExecutors.newBoundedCachedThreadPool(16);
+    private final ExecutorService LOAD_EXECUTOR = MoreExecutors.newBoundedCachedThreadPool(32);
 
     @NotNull
     private final ConcurrentHashMap<String, PlaylistMetadata> metadataCache = new ConcurrentHashMap<>();
@@ -36,8 +37,8 @@ public class RefreshingVideoCache {
     @NotNull
     private final Function<String, List<Video>> videoDownloader;
 
-    public RefreshingVideoCache(@NotNull Function<List<String>, List<Playlist>> bulkPlaylistDownloader,
-                                @NotNull Function<String, List<Video>> videoDownloader) {
+    RefreshingVideoCache(@NotNull Function<List<String>, List<Playlist>> bulkPlaylistDownloader,
+                         @NotNull Function<String, List<Video>> videoDownloader) {
         this.bulkPlaylistDownloader = bulkPlaylistDownloader;
         this.videoDownloader = videoDownloader;
 
@@ -49,9 +50,9 @@ public class RefreshingVideoCache {
     }
 
     @NotNull
-    public Future<List<List<Video>>> get(@NotNull List<String> playlistIds) {
+    Future<List<List<Video>>> get(@NotNull List<String> playlistIds) {
         updateMetadataCache(playlistIds);
-        return allOf(new ArrayList<>(delegateCache.getAll(playlistIds).values()));
+        return allOf(delegateCache.getAll(playlistIds).values());
     }
 
     private void updateMetadataCache(@NotNull List<String> playlistIds) {
@@ -103,14 +104,14 @@ public class RefreshingVideoCache {
     }
 
     @NotNull
-    private static <V> Future<List<V>> allOf(List<? extends Future<? extends V>> futures) {
+    private static <V> Future<List<V>> allOf(Collection<? extends Future<? extends V>> futures) {
         return new CompositeFuture<>(futures);
     }
 
     private static class CompositeFuture<V> implements Future<List<V>> {
-        private final List<? extends Future<? extends V>> futures;
+        private final Collection<? extends Future<? extends V>> futures;
 
-        CompositeFuture(List<? extends Future<? extends V>> futures) {
+        CompositeFuture(Collection<? extends Future<? extends V>> futures) {
             this.futures = futures;
         }
 
