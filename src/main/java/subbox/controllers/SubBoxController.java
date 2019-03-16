@@ -30,7 +30,7 @@ public class SubBoxController {
     @GetMapping("/videos")
     public List<Video> videos(@RequestParam("channelIds") @NotNull @NotEmpty Set<@NotBlank String> channelIds,
                               @RequestParam(value = "perPage", defaultValue = "20") @Positive @Max(50) int perPage,
-                              @RequestParam(value = "page", defaultValue = "0") @PositiveOrZero int page) throws ExecutionException {
+                              @RequestParam(value = "page", defaultValue = "0") @PositiveOrZero long page) throws ExecutionException {
         Future<List<List<Video>>> uploadedVideos = videoService.getUploadedVideos(new ArrayList<>(channelIds));
         List<List<Video>> videoLists;
         try {
