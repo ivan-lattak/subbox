@@ -1,4 +1,4 @@
-package subbox.util.iterators;
+package subbox.util;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;

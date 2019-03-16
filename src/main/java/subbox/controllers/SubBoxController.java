@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import subbox.services.AsyncVideoService;
 import subbox.services.YouTubeService;
-import subbox.util.iterators.MoreIterators;
+import subbox.util.MoreIterators;
 
 import javax.validation.constraints.*;
 import java.util.*;
