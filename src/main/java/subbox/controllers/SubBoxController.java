@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import subbox.services.AsyncVideoService;
 import subbox.services.YouTubeService;
-import subbox.util.iterators.Iterators;
+import subbox.util.iterators.MoreIterators;
 
 import javax.validation.constraints.*;
 import java.util.*;
@@ -38,7 +38,7 @@ public class SubBoxController {
                 .map(List::iterator)
                 .collect(toList());
 
-        Iterator<Video> mergedIterator = Iterators.mergeSorted(videoIterators, YouTubeService.DEFAULT_VIDEO_COMPARATOR);
+        Iterator<Video> mergedIterator = MoreIterators.mergeSorted(videoIterators, YouTubeService.DEFAULT_VIDEO_COMPARATOR);
         Spliterator<Video> spliterator = Spliterators.spliteratorUnknownSize(mergedIterator, 0);
         return StreamSupport.stream(spliterator, false)
                 .skip(perPage * page)
@@ -55,7 +55,7 @@ public class SubBoxController {
                 .map(List::iterator)
                 .collect(toList());
 
-        Iterator<Video> mergedIterator = Iterators.mergeSorted(videoIterators, YouTubeService.DEFAULT_VIDEO_COMPARATOR);
+        Iterator<Video> mergedIterator = MoreIterators.mergeSorted(videoIterators, YouTubeService.DEFAULT_VIDEO_COMPARATOR);
         Spliterator<Video> spliterator = Spliterators.spliteratorUnknownSize(mergedIterator, 0);
         return StreamSupport.stream(spliterator, false).count();
     }

@@ -1,63 +1,14 @@
 package subbox.util.iterators;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public class Iterators {
+public class MoreIterators {
 
-    private Iterators() {
-    }
-
-    @NotNull
-    @SuppressWarnings("WeakerAccess")
-    public static <T> PeekingIterator<T> peekingIterator(@NotNull Iterator<? extends T> iterator) {
-        return new PeekingIter<>(iterator);
-    }
-
-    private static class PeekingIter<T> implements PeekingIterator<T> {
-        @NotNull
-        private final Iterator<? extends T> iterator;
-
-        private boolean hasBuffered;
-        private T buffered;
-
-        PeekingIter(@NotNull Iterator<? extends T> iterator) {
-            this.iterator = iterator;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return hasBuffered || iterator.hasNext();
-        }
-
-        @Override
-        public T next() {
-            if (!hasNext()) {
-                throw new NoSuchElementException();
-            }
-
-            if (hasBuffered) {
-                hasBuffered = false;
-                return buffered;
-            }
-
-            return iterator.next();
-        }
-
-        @Override
-        public T peek() {
-            if (!hasNext()) {
-                throw new NoSuchElementException();
-            }
-
-            if (!hasBuffered) {
-                hasBuffered = true;
-                buffered = iterator.next();
-            }
-
-            return buffered;
-        }
+    private MoreIterators() {
     }
 
     @NotNull
@@ -69,21 +20,25 @@ public class Iterators {
 
         List<? extends Iterator<T>> iters = iterators;
         while (iters.size() > 1) {
-            List<Iterator<T>> newIters = new ArrayList<>();
-
-            for (int i = 0; i < iters.size(); i += 2) {
-                if (i == iters.size() - 1) {
-                    newIters.add(iters.get(i));
-                    continue;
-                }
-
-                newIters.add(new MergingIter<>(iters.get(i), iters.get(i + 1), comparator));
-            }
-
-            iters = newIters;
+            iters = mergePairs(iters, comparator);
         }
 
         return iters.get(0);
+    }
+
+    private static <T> List<Iterator<T>> mergePairs(@NotNull List<? extends Iterator<T>> iterators, @NotNull Comparator<? super T> comparator) {
+        List<Iterator<T>> mergedIterators = new ArrayList<>();
+
+        for (int i = 0; i < iterators.size(); i += 2) {
+            if (i == iterators.size() - 1) {
+                mergedIterators.add(iterators.get(i));
+                continue;
+            }
+
+            mergedIterators.add(new MergingIter<>(iterators.get(i), iterators.get(i + 1), comparator));
+        }
+
+        return mergedIterators;
     }
 
     private static class MergingIter<T> implements Iterator<T> {
@@ -97,8 +52,8 @@ public class Iterators {
         MergingIter(@NotNull Iterator<T> left,
                     @NotNull Iterator<T> right,
                     @NotNull Comparator<? super T> comparator) {
-            this.left = peekingIterator(left);
-            this.right = peekingIterator(right);
+            this.left = Iterators.peekingIterator(left);
+            this.right = Iterators.peekingIterator(right);
             this.comparator = comparator;
         }
 
@@ -109,15 +64,17 @@ public class Iterators {
 
         @Override
         public T next() {
-            if (!hasNext()) {
+            boolean leftIsEmpty = !left.hasNext();
+            boolean rightIsEmpty = !right.hasNext();
+            if (leftIsEmpty && rightIsEmpty) {
                 throw new NoSuchElementException();
             }
 
-            if (!left.hasNext()) {
+            if (leftIsEmpty) {
                 return right.next();
             }
 
-            if (!right.hasNext()) {
+            if (rightIsEmpty) {
                 return left.next();
             }
 
