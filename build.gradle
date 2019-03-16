@@ -26,6 +26,9 @@ repositories {
 dependencies {
     compile 'org.jetbrains:annotations:17.0.0'
 
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.4.0'
+
     compile 'org.springframework:spring-web:5.1.5.RELEASE'
     compile 'org.springframework:spring-context-support:5.1.5.RELEASE'
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -36,4 +39,8 @@ dependencies {
     compile 'org.apache.commons:commons-lang3:3.8.1'
 
     compile 'com.github.ben-manes.caffeine:caffeine:2.7.0'
+}
+
+test {
+    useJUnitPlatform()
 }
