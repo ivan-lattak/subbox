@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.function.Function;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 class RefreshingVideoCache {
@@ -36,6 +37,8 @@ class RefreshingVideoCache {
 
     @NotNull
     private final ExecutorService LOAD_EXECUTOR = MoreExecutors.newBoundedCachedThreadPool(32);
+    @NotNull
+    private final ScheduledFuture<?> EVICT_AND_REFRESH_TASK;
 
     @NotNull
     private final ConcurrentHashMap<String, PlaylistMetadata> metadataCache = new ConcurrentHashMap<>();
@@ -56,7 +59,17 @@ class RefreshingVideoCache {
                 .build(playlistId -> LOAD_EXECUTOR.submit(() -> this.videoDownloader.apply(playlistId)));
 
         ScheduledExecutorService evictAndRefreshExecutor = Executors.newSingleThreadScheduledExecutor();
-        evictAndRefreshExecutor.scheduleAtFixedRate(this::evictAndRefresh, UPDATE_PERIOD.toNanos(), UPDATE_PERIOD.toNanos(), NANOSECONDS);
+        EVICT_AND_REFRESH_TASK = evictAndRefreshExecutor.scheduleAtFixedRate(this::evictAndRefresh, UPDATE_PERIOD.toNanos(), UPDATE_PERIOD.toNanos(), NANOSECONDS);
+    }
+
+    void destroy() {
+        LOAD_EXECUTOR.shutdown();
+        EVICT_AND_REFRESH_TASK.cancel(false);
+        try {
+            log.info("Waiting for the thread pool to die");
+            LOAD_EXECUTOR.awaitTermination(1, MINUTES);
+        } catch (InterruptedException ignored) {
+        }
     }
 
     @NotNull
