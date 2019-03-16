@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import subbox.SubBoxApplication;
 import subbox.model.PlaylistMetadata;
+import subbox.util.DurationFormatter;
 import subbox.util.MoreExecutors;
 
 import java.time.Duration;
@@ -137,7 +138,7 @@ class RefreshingVideoCache {
         }
 
         log.debug("evictAndRefresh: refreshed {} playlists", refreshedPlaylists);
-        log.debug("evictAndRefresh: finished in {} ms", Duration.between(start, ZonedDateTime.now()).toNanos() / 1_000_000.0);
+        log.debug("evictAndRefresh: finished in {}", DurationFormatter.format(Duration.between(start, ZonedDateTime.now())));
     }
 
     @NotNull

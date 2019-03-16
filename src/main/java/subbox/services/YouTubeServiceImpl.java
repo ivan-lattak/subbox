@@ -8,12 +8,17 @@ import com.google.api.services.youtube.YouTubeRequestInitializer;
 import com.google.api.services.youtube.model.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import subbox.SubBoxApplication;
+import subbox.util.DurationFormatter;
 import subbox.util.Exceptions;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -31,6 +36,8 @@ public class YouTubeServiceImpl implements YouTubeService {
     private static final NetHttpTransport HTTP_TRANSPORT = getHttpTransport();
     @NotNull
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+
+    private static final Logger log = LoggerFactory.getLogger(YouTubeServiceImpl.class);
 
     @NotNull
     private static NetHttpTransport getHttpTransport() {
@@ -112,6 +119,10 @@ public class YouTubeServiceImpl implements YouTubeService {
     @NotNull
     @Override
     public List<Video> getVideos(@NotNull String playlistId) {
+        log.debug("Downloading playlist \"{}\"", playlistId);
+        log.debug("Fetching video ids for playlist \"{}\"", playlistId);
+        ZonedDateTime start = ZonedDateTime.now();
+
         List<String> videoIds = new ArrayList<>();
         String nextPageToken = null;
         do {
@@ -124,17 +135,24 @@ public class YouTubeServiceImpl implements YouTubeService {
                     .forEach(videoIds::add);
         } while (nextPageToken != null);
 
+        log.debug("Fetched video ids for playlist \"{}\", took {}", playlistId, DurationFormatter.format(Duration.between(start, ZonedDateTime.now())));
+        log.debug("Downloading videos for playlist \"{}\"", playlistId);
+        ZonedDateTime startDownload = ZonedDateTime.now();
+
         List<Video> downloadedVideos = batches(videoIds)
                 .map(batch -> Exceptions.wrapIOException(() -> getYoutube()
                         .videos()
                         .list("snippet")
                         .setId(String.join(",", batch))
                         .setMaxResults((long) batch.size())
+                        .setFields("items(id,snippet(channelId,publishedAt,thumbnails/default,title))")
                         .execute()
                         .getItems()))
                 .collect(joiningLists());
-
         downloadedVideos.sort(YouTubeService.DEFAULT_VIDEO_COMPARATOR);
+
+        log.debug("Downloaded videos for playlist \"{}\", took {}", playlistId, DurationFormatter.format(Duration.between(startDownload, ZonedDateTime.now())));
+        log.debug("Downloaded playlist \"{}\", took {}", playlistId, DurationFormatter.format(Duration.between(start, ZonedDateTime.now())));
         return downloadedVideos;
     }
 
