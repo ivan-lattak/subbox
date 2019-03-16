@@ -29,17 +29,12 @@ public class SubBoxController {
     @NotNull
     @GetMapping("/videos")
     public List<Video> videos(@RequestParam("channelIds") @NotNull @NotEmpty Set<@NotBlank String> channelIds,
-                              @RequestParam(value = "perPage", defaultValue = "20") @Positive @Max(50) int perPage,
-                              @RequestParam(value = "page", defaultValue = "0") @PositiveOrZero long page) throws ExecutionException {
+                              @RequestParam(name = "perPage", defaultValue = "20") @Positive @Max(50) int perPage,
+                              @RequestParam(name = "page", defaultValue = "0") @PositiveOrZero long page) throws ExecutionException {
         Future<List<List<Video>>> uploadedVideos = videoService.getUploadedVideos(new ArrayList<>(channelIds));
-        List<List<Video>> videoLists;
-        try {
-            videoLists = uploadedVideos.get();
-        } catch (InterruptedException e) {
-            throw new Error(e);
-        }
 
-        List<Iterator<Video>> videoIterators = videoLists.stream()
+        List<Iterator<Video>> videoIterators = getUninterrupted(uploadedVideos)
+                .stream()
                 .map(List::iterator)
                 .collect(toList());
 
@@ -49,6 +44,28 @@ public class SubBoxController {
                 .skip(perPage * page)
                 .limit(perPage)
                 .collect(toList());
+    }
+
+    @GetMapping("/videos/count")
+    public long videoCount(@RequestParam("channelIds") @NotNull @NotEmpty Set<@NotBlank String> channelIds) throws ExecutionException {
+        Future<List<List<Video>>> uploadedVideos = videoService.getUploadedVideos(new ArrayList<>(channelIds));
+
+        List<Iterator<Video>> videoIterators = getUninterrupted(uploadedVideos)
+                .stream()
+                .map(List::iterator)
+                .collect(toList());
+
+        Iterator<Video> mergedIterator = Iterators.mergeSorted(videoIterators, YouTubeService.DEFAULT_VIDEO_COMPARATOR);
+        Spliterator<Video> spliterator = Spliterators.spliteratorUnknownSize(mergedIterator, 0);
+        return StreamSupport.stream(spliterator, false).count();
+    }
+
+    private <V> V getUninterrupted(Future<V> future) throws ExecutionException {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            throw new Error("Thread was interrupted", e);
+        }
     }
 
 }
