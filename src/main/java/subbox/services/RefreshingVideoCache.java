@@ -34,8 +34,8 @@ public class RefreshingVideoCache implements VideoCache {
     @NotNull
     private static final Logger log = LoggerFactory.getLogger(RefreshingVideoCache.class);
 
-    private static Duration EVICTION_THRESHOLD;
-    private static Duration UPDATE_PERIOD;
+    private static Duration evictionThreshold;
+    private static Duration updatePeriod;
 
     @NotNull
     private final YouTubeService youTubeService;
@@ -56,12 +56,12 @@ public class RefreshingVideoCache implements VideoCache {
 
     @Value("${subbox.cache.eviction-threshold}")
     public void setEvictionThreshold(@NotNull String evictionThreshold) {
-        EVICTION_THRESHOLD = Duration.parse(evictionThreshold);
+        RefreshingVideoCache.evictionThreshold = Duration.parse(evictionThreshold);
     }
 
     @Value("${subbox.cache.update-period}")
     public void setUpdatePeriod(@NotNull String updatePeriod) {
-        UPDATE_PERIOD = Duration.parse(updatePeriod);
+        RefreshingVideoCache.updatePeriod = Duration.parse(updatePeriod);
     }
 
     @PostConstruct
@@ -71,7 +71,7 @@ public class RefreshingVideoCache implements VideoCache {
 
         log.info("Initializing evictAndRefresh task");
         evictAndRefreshTask = Executors.newSingleThreadScheduledExecutor()
-                .scheduleAtFixedRate(this::evictAndRefresh, UPDATE_PERIOD.toNanos(), UPDATE_PERIOD.toNanos(), NANOSECONDS);
+                .scheduleAtFixedRate(this::evictAndRefresh, updatePeriod.toNanos(), updatePeriod.toNanos(), NANOSECONDS);
     }
 
     @PreDestroy
@@ -130,7 +130,7 @@ public class RefreshingVideoCache implements VideoCache {
         MutableInt evictedPlaylists = new MutableInt();
         metadataCache.entrySet()
                 .removeIf(entry -> {
-                    if (entry.getValue().isOlderThan(EVICTION_THRESHOLD) ||
+                    if (entry.getValue().isOlderThan(evictionThreshold) ||
                             playlistCache.getIfPresent(entry.getKey()) == null) {
                         evictedMetadata.increment();
                         return true;

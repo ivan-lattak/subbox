@@ -49,27 +49,33 @@ public class YouTubeServiceImpl implements YouTubeService {
     @NotNull
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
-    private static String API_KEY;
-    private static String APP_NAME;
+    private static String apiKey;
+    private static String appName;
+    private static int videosToDownload;
 
     @NotNull
     private final ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(
             () -> {
                 log.info("Initializing thread-local YouTube service");
                 return new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, null)
-                        .setYouTubeRequestInitializer(new YouTubeRequestInitializer(API_KEY))
-                        .setApplicationName(APP_NAME)
+                        .setYouTubeRequestInitializer(new YouTubeRequestInitializer(apiKey))
+                        .setApplicationName(appName)
                         .build();
             });
 
     @Value("${subbox.api.key}")
     public void setApiKey(@NotNull String apiKey) {
-        API_KEY = apiKey;
+        YouTubeServiceImpl.apiKey = apiKey;
     }
 
     @Value("${subbox.app.name}")
     public void setAppName(@NotNull String appName) {
-        APP_NAME = appName;
+        YouTubeServiceImpl.appName = appName;
+    }
+
+    @Value("${subbox.cache.videos-to-dl")
+    public static void setVideosToDownload(String videosToDownload) {
+        YouTubeServiceImpl.videosToDownload = Integer.valueOf(videosToDownload);
     }
 
     @NotNull
