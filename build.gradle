@@ -26,8 +26,7 @@ repositories {
 dependencies {
     compile 'org.jetbrains:annotations:17.0.0'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.4.0'
+    testCompile 'org.junit.jupiter:junit-jupiter:5.4.0'
 
     compile 'org.springframework:spring-web:5.1.5.RELEASE'
     compile 'org.springframework:spring-context-support:5.1.5.RELEASE'

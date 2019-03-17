@@ -2,7 +2,10 @@ package subbox.util;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.Duration;
+import java.util.Locale;
 
 public final class DurationFormatter {
 
@@ -11,6 +14,10 @@ public final class DurationFormatter {
 
     @NotNull
     public static String format(@NotNull Duration duration) {
+        if (duration.isZero()) {
+            return "0ms";
+        }
+
         boolean negative = duration.isNegative();
         duration = duration.abs();
 
@@ -20,12 +27,17 @@ public final class DurationFormatter {
         long seconds = duration.toSecondsPart();
         double millis = duration.toNanosPart() / 1_000_000.0;
 
+        DecimalFormat format = null;
+        if (millis != 0) {
+            format = new DecimalFormat("#.######ms", new DecimalFormatSymbols(Locale.US));
+        }
+
         return (negative ? "-" : "") +
-                (days != 0 ? days + "d" : "") +
-                (hours != 0 ? hours + "h" : "") +
-                (minutes != 0 ? minutes + "m" : "") +
-                (seconds != 0 ? seconds + "s" : "") +
-                (millis != 0 ? millis + "ms" : "");
+                (days != 0 ? String.format("%dd", days) : "") +
+                (hours != 0 ? String.format("%dh", hours) : "") +
+                (minutes != 0 ? String.format("%dm", minutes) : "") +
+                (seconds != 0 ? String.format("%ds", seconds) : "") +
+                (millis != 0 ? format.format(millis) : "");
     }
 
 }
