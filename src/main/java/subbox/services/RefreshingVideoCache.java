@@ -29,7 +29,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 @Service
-public class RefreshingVideoCache {
+public class RefreshingVideoCache implements VideoCache {
 
     @NotNull
     private static final Logger log = LoggerFactory.getLogger(RefreshingVideoCache.class);
@@ -86,8 +86,9 @@ public class RefreshingVideoCache {
         }
     }
 
+    @Override
     @NotNull
-    Future<List<List<Video>>> get(@NotNull List<String> playlistIds) {
+    public Future<List<List<Video>>> get(@NotNull List<String> playlistIds) {
         updateMetadataCache(playlistIds);
         return allOf(playlistCache.getAll(playlistIds).values());
     }

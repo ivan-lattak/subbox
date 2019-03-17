@@ -30,7 +30,7 @@ public class CachingAsyncVideoService implements AsyncVideoService {
     @Autowired
     private YouTubeService youTubeService;
     @Autowired
-    private RefreshingVideoCache videoCache;
+    private VideoCache videoCache;
 
     @NotNull
     @Override
