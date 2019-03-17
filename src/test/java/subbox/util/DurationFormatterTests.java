@@ -1,5 +1,6 @@
 package subbox.util;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -13,13 +14,14 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class DurationFormatterTests {
 
     @ParameterizedTest
-    @MethodSource("durationFormatterTestArgs")
-    void testDurationFormatter(Duration duration, String expectedFormattedString) {
+    @MethodSource("argsFormat")
+    void testFormat(@NotNull Duration duration, @NotNull String expectedFormattedString) {
         String formattedString = DurationFormatter.format(duration);
         Assertions.assertEquals(expectedFormattedString, formattedString);
     }
 
-    private static Stream<Arguments> durationFormatterTestArgs() {
+    @NotNull
+    private static Stream<Arguments> argsFormat() {
         return Stream.of(
                 arguments(Duration.ZERO, "0ms"),
                 arguments(Duration.ofNanos(0), "0ms"),
