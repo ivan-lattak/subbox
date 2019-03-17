@@ -30,6 +30,9 @@ import java.util.stream.Stream;
 @Service
 public class YouTubeServiceImpl implements YouTubeService {
 
+    @NotNull
+    private static final Logger log = LoggerFactory.getLogger(YouTubeServiceImpl.class);
+
     private static final int MAX_RESULTS = 50;
     private static final long MAX_RESULTS_L = (long) MAX_RESULTS;
     @NotNull
@@ -46,18 +49,18 @@ public class YouTubeServiceImpl implements YouTubeService {
     @NotNull
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
-    @NotNull
-    private static final Logger log = LoggerFactory.getLogger(YouTubeServiceImpl.class);
-
     private static String API_KEY;
     private static String APP_NAME;
 
     @NotNull
     private final ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(
-            () -> new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, null)
-                    .setYouTubeRequestInitializer(new YouTubeRequestInitializer(API_KEY))
-                    .setApplicationName(APP_NAME)
-                    .build());
+            () -> {
+                log.info("Initializing thread-local YouTube service");
+                return new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, null)
+                        .setYouTubeRequestInitializer(new YouTubeRequestInitializer(API_KEY))
+                        .setApplicationName(APP_NAME)
+                        .build();
+            });
 
     @Value("${subbox.api.key}")
     public void setApiKey(@NotNull String apiKey) {
