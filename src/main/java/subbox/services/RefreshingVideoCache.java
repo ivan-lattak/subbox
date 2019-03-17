@@ -8,11 +8,15 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import subbox.SubBoxApplication;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import subbox.model.PlaylistMetadata;
 import subbox.util.DurationFormatter;
 import subbox.util.MoreExecutors;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -20,54 +24,64 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
-import java.util.function.Function;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-class RefreshingVideoCache {
-
-    @NotNull
-    private static final Duration EVICTION_THRESHOLD = Duration.parse(SubBoxApplication.getProperty("subbox.cache.eviction-threshold"));
-    @NotNull
-    private static final Duration UPDATE_PERIOD = Duration.parse(SubBoxApplication.getProperty("subbox.cache.update-period"));
+@Service
+public class RefreshingVideoCache {
 
     @NotNull
     private static final Logger log = LoggerFactory.getLogger(RefreshingVideoCache.class);
 
-    @NotNull
-    private final ExecutorService LOAD_EXECUTOR = MoreExecutors.newBoundedCachedThreadPool(32);
-    @NotNull
-    private final ScheduledFuture<?> EVICT_AND_REFRESH_TASK;
+    private static Duration EVICTION_THRESHOLD;
+    private static Duration UPDATE_PERIOD;
 
+    @NotNull
+    private final YouTubeService youTubeService;
     @NotNull
     private final ConcurrentHashMap<String, PlaylistMetadata> metadataCache = new ConcurrentHashMap<>();
     @NotNull
     private final LoadingCache<String, Future<List<Video>>> playlistCache;
 
-    @NotNull
-    private final Function<List<String>, List<Playlist>> bulkPlaylistDownloader;
-    @NotNull
-    private final Function<String, List<Video>> videoDownloader;
+    private ExecutorService loadExecutor;
+    private ScheduledFuture<?> evictAndRefreshTask;
 
-    RefreshingVideoCache(@NotNull Function<List<String>, List<Playlist>> bulkPlaylistDownloader,
-                         @NotNull Function<String, List<Video>> videoDownloader) {
-        this.bulkPlaylistDownloader = bulkPlaylistDownloader;
-        this.videoDownloader = videoDownloader;
-
+    @Autowired
+    public RefreshingVideoCache(@NotNull YouTubeService youTubeService) {
+        this.youTubeService = youTubeService;
         this.playlistCache = Caffeine.newBuilder()
-                .build(playlistId -> LOAD_EXECUTOR.submit(() -> this.videoDownloader.apply(playlistId)));
-
-        ScheduledExecutorService evictAndRefreshExecutor = Executors.newSingleThreadScheduledExecutor();
-        EVICT_AND_REFRESH_TASK = evictAndRefreshExecutor.scheduleAtFixedRate(this::evictAndRefresh, UPDATE_PERIOD.toNanos(), UPDATE_PERIOD.toNanos(), NANOSECONDS);
+                .build(playlistId -> loadExecutor.submit(() -> this.youTubeService.getVideos(playlistId)));
     }
 
-    void destroy() {
-        LOAD_EXECUTOR.shutdown();
-        EVICT_AND_REFRESH_TASK.cancel(false);
+    @Value("${subbox.cache.eviction-threshold}")
+    public void setEvictionThreshold(@NotNull String evictionThreshold) {
+        EVICTION_THRESHOLD = Duration.parse(evictionThreshold);
+    }
+
+    @Value("${subbox.cache.update-period}")
+    public void setUpdatePeriod(@NotNull String updatePeriod) {
+        UPDATE_PERIOD = Duration.parse(updatePeriod);
+    }
+
+    @PostConstruct
+    public void init() {
+        log.info("Initializing load thread pool");
+        loadExecutor = MoreExecutors.newBoundedCachedThreadPool(32);
+
+        log.info("Initializing evictAndRefresh task");
+        evictAndRefreshTask = Executors.newSingleThreadScheduledExecutor()
+                .scheduleAtFixedRate(this::evictAndRefresh, UPDATE_PERIOD.toNanos(), UPDATE_PERIOD.toNanos(), NANOSECONDS);
+    }
+
+    @PreDestroy
+    public void destroy() {
+        loadExecutor.shutdown();
+        log.info("Cancelling evictAndRefresh task");
+        evictAndRefreshTask.cancel(false);
         try {
-            log.info("Waiting for the thread pool to die");
-            LOAD_EXECUTOR.awaitTermination(1, MINUTES);
+            log.info("Waiting for the load thread pool to die");
+            loadExecutor.awaitTermination(1, MINUTES);
         } catch (InterruptedException ignored) {
         }
     }
@@ -98,7 +112,7 @@ class RefreshingVideoCache {
     }
 
     private void getMetadata(@NotNull List<String> playlistIds) {
-        List<Playlist> downloadedPlaylists = bulkPlaylistDownloader.apply(playlistIds);
+        List<Playlist> downloadedPlaylists = youTubeService.getPlaylists(playlistIds);
         for (int i = 0; i < playlistIds.size(); i++) {
             String playlistETag = downloadedPlaylists.get(i).getEtag();
             PlaylistMetadata metadata = new PlaylistMetadata(playlistETag);
@@ -137,7 +151,7 @@ class RefreshingVideoCache {
         log.debug("evictAndRefresh: refreshing stale playlists");
 
         MutableInt refreshedPlaylists = new MutableInt();
-        List<Playlist> playlists = bulkPlaylistDownloader.apply(new ArrayList<>(metadataCache.keySet()));
+        List<Playlist> playlists = youTubeService.getPlaylists(new ArrayList<>(metadataCache.keySet()));
         for (Playlist playlist : playlists) {
             String id = playlist.getId();
             PlaylistMetadata cachedPlaylist = metadataCache.get(id);

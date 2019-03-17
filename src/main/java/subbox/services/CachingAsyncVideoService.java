@@ -7,7 +7,6 @@ import com.google.api.services.youtube.model.Channel;
 import com.google.api.services.youtube.model.ChannelContentDetails;
 import com.google.api.services.youtube.model.Video;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,28 +20,17 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 @Service
-public class CachingAsyncVideoService implements AsyncVideoService, DisposableBean {
-
-    @Autowired
-    private final YouTubeService youTubeService;
+public class CachingAsyncVideoService implements AsyncVideoService {
 
     @NotNull
     private final LoadingCache<String, Optional<Channel>> channelCache = Caffeine.newBuilder()
             .expireAfterWrite(1, DAYS)
             .build(new ChannelCacheLoader());
-    @NotNull
-    private final RefreshingVideoCache videoCache;
 
     @Autowired
-    public CachingAsyncVideoService(@NotNull YouTubeService youTubeService) {
-        this.youTubeService = youTubeService;
-        this.videoCache = new RefreshingVideoCache(youTubeService::getPlaylists, youTubeService::getVideos);
-    }
-
-    @Override
-    public void destroy() {
-        videoCache.destroy();
-    }
+    private YouTubeService youTubeService;
+    @Autowired
+    private RefreshingVideoCache videoCache;
 
     @NotNull
     @Override

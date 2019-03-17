@@ -10,8 +10,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import subbox.SubBoxApplication;
 import subbox.util.DurationFormatter;
 import subbox.util.Exceptions;
 
@@ -33,27 +33,41 @@ public class YouTubeServiceImpl implements YouTubeService {
     private static final int MAX_RESULTS = 50;
     private static final long MAX_RESULTS_L = (long) MAX_RESULTS;
     @NotNull
-    private static final NetHttpTransport HTTP_TRANSPORT = getHttpTransport();
-    @NotNull
-    private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private static final NetHttpTransport HTTP_TRANSPORT;
 
-    private static final Logger log = LoggerFactory.getLogger(YouTubeServiceImpl.class);
-
-    @NotNull
-    private static NetHttpTransport getHttpTransport() {
+    static {
         try {
-            return GoogleNetHttpTransport.newTrustedTransport();
+            HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         } catch (GeneralSecurityException | IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     @NotNull
+    private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+
+    @NotNull
+    private static final Logger log = LoggerFactory.getLogger(YouTubeServiceImpl.class);
+
+    private static String API_KEY;
+    private static String APP_NAME;
+
+    @NotNull
     private final ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(
             () -> new YouTube.Builder(HTTP_TRANSPORT, JSON_FACTORY, null)
-                    .setYouTubeRequestInitializer(new YouTubeRequestInitializer(SubBoxApplication.getProperty("subbox.api.key")))
-                    .setApplicationName(SubBoxApplication.getProperty("subbox.app.name"))
+                    .setYouTubeRequestInitializer(new YouTubeRequestInitializer(API_KEY))
+                    .setApplicationName(APP_NAME)
                     .build());
+
+    @Value("${subbox.api.key}")
+    public void setApiKey(@NotNull String apiKey) {
+        API_KEY = apiKey;
+    }
+
+    @Value("${subbox.app.name}")
+    public void setAppName(@NotNull String appName) {
+        APP_NAME = appName;
+    }
 
     @NotNull
     private YouTube getYoutube() {
