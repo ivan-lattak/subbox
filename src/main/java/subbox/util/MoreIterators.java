@@ -18,12 +18,11 @@ public final class MoreIterators {
             return empty();
         }
 
-        List<? extends Iterator<T>> iters = iterators;
-        while (iters.size() > 1) {
-            iters = mergePairs(iters, comparator);
+        while (iterators.size() > 1) {
+            iterators = mergePairs(iterators, comparator);
         }
 
-        return iters.get(0);
+        return iterators.get(0);
     }
 
     private static <T> List<Iterator<T>> mergePairs(@NotNull List<? extends Iterator<T>> iterators, @NotNull Comparator<? super T> comparator) {
@@ -35,13 +34,13 @@ public final class MoreIterators {
                 continue;
             }
 
-            mergedIterators.add(new MergingIter<>(iterators.get(i), iterators.get(i + 1), comparator));
+            mergedIterators.add(new MergingImpl<>(iterators.get(i), iterators.get(i + 1), comparator));
         }
 
         return mergedIterators;
     }
 
-    private static class MergingIter<T> implements Iterator<T> {
+    private static class MergingImpl<T> implements Iterator<T> {
         @NotNull
         private final PeekingIterator<T> left;
         @NotNull
@@ -49,7 +48,7 @@ public final class MoreIterators {
         @NotNull
         private final Comparator<? super T> comparator;
 
-        MergingIter(@NotNull Iterator<T> left,
+        MergingImpl(@NotNull Iterator<T> left,
                     @NotNull Iterator<T> right,
                     @NotNull Comparator<? super T> comparator) {
             this.left = Iterators.peekingIterator(left);
