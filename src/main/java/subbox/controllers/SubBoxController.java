@@ -46,20 +46,6 @@ public class SubBoxController {
                 .collect(toList());
     }
 
-    @GetMapping("/videos/count")
-    public long videoCount(@RequestParam("channelIds") @NotNull @NotEmpty Set<@NotBlank String> channelIds) throws ExecutionException {
-        Future<List<List<Video>>> uploadedVideos = videoService.getUploadedVideos(new ArrayList<>(channelIds));
-
-        List<Iterator<Video>> videoIterators = getUninterrupted(uploadedVideos)
-                .stream()
-                .map(List::iterator)
-                .collect(toList());
-
-        Iterator<Video> mergedIterator = MoreIterators.mergeSorted(videoIterators, YouTubeService.DEFAULT_VIDEO_COMPARATOR);
-        Spliterator<Video> spliterator = Spliterators.spliteratorUnknownSize(mergedIterator, 0);
-        return StreamSupport.stream(spliterator, false).count();
-    }
-
     private <V> V getUninterrupted(Future<V> future) throws ExecutionException {
         try {
             return future.get();
