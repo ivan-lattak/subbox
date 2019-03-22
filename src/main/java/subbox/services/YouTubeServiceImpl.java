@@ -27,6 +27,8 @@ import java.util.stream.Collector;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.toList;
+
 @Service
 public class YouTubeServiceImpl implements YouTubeService {
 
@@ -51,7 +53,7 @@ public class YouTubeServiceImpl implements YouTubeService {
 
     private static String apiKey;
     private static String appName;
-    private static int videosToDownload;
+    private static long videosToDownload;
 
     @NotNull
     private final ThreadLocal<YouTube> youTube = ThreadLocal.withInitial(
@@ -73,9 +75,9 @@ public class YouTubeServiceImpl implements YouTubeService {
         YouTubeServiceImpl.appName = appName;
     }
 
-    @Value("${subbox.cache.videos-to-dl")
-    public static void setVideosToDownload(String videosToDownload) {
-        YouTubeServiceImpl.videosToDownload = Integer.valueOf(videosToDownload);
+    @Value("${subbox.cache.videos-per-playlist}")
+    public void setVideosToDownload(long videosToDownload) {
+        YouTubeServiceImpl.videosToDownload = videosToDownload;
     }
 
     @NotNull
@@ -128,13 +130,13 @@ public class YouTubeServiceImpl implements YouTubeService {
     }
 
     @NotNull
-    private PlaylistItemListResponse getPlaylistItems(@NotNull String playlistId, @Nullable String pageToken) {
+    private PlaylistItemListResponse getPlaylistItems(@NotNull String playlistId, @Nullable String pageToken, long maxResults) {
         return Exceptions.wrapCheckedException(() -> getYoutube()
                 .playlistItems()
                 .list("contentDetails")
                 .setPlaylistId(playlistId)
                 .setPageToken(pageToken)
-                .setMaxResults(MAX_RESULTS_L)
+                .setMaxResults(maxResults)
                 .setFields("nextPageToken,items/contentDetails/videoId")
                 .execute());
     }
@@ -148,15 +150,23 @@ public class YouTubeServiceImpl implements YouTubeService {
 
         List<String> videoIds = new ArrayList<>();
         String nextPageToken = null;
-        do {
-            PlaylistItemListResponse response = getPlaylistItems(playlistId, nextPageToken);
+        long remaining = videosToDownload > 0 ? videosToDownload : Long.MAX_VALUE;
+        while (remaining > 0) {
+            PlaylistItemListResponse response = getPlaylistItems(playlistId, nextPageToken, Math.min(MAX_RESULTS_L, remaining));
             nextPageToken = response.getNextPageToken();
-            response.getItems()
+            List<String> videoIdBatch = response.getItems()
                     .stream()
                     .map(PlaylistItem::getContentDetails)
                     .map(PlaylistItemContentDetails::getVideoId)
-                    .forEach(videoIds::add);
-        } while (nextPageToken != null);
+                    .collect(toList());
+
+            remaining -= videoIdBatch.size();
+            videoIds.addAll(videoIdBatch);
+
+            if (nextPageToken == null) {
+                break;
+            }
+        }
 
         log.debug("Fetched video ids for playlist \"{}\", took {}", playlistId, DurationFormatter.format(Duration.between(start, ZonedDateTime.now())));
         log.debug("Downloading videos for playlist \"{}\"", playlistId);
