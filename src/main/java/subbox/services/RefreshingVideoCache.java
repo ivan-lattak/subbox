@@ -55,13 +55,13 @@ public class RefreshingVideoCache implements VideoCache {
     }
 
     @Value("${subbox.cache.eviction-threshold}")
-    public void setEvictionThreshold(@NotNull String evictionThreshold) {
-        RefreshingVideoCache.evictionThreshold = Duration.parse(evictionThreshold);
+    public void setEvictionThreshold(@NotNull Duration evictionThreshold) {
+        RefreshingVideoCache.evictionThreshold = evictionThreshold;
     }
 
     @Value("${subbox.cache.update-period}")
-    public void setUpdatePeriod(@NotNull String updatePeriod) {
-        RefreshingVideoCache.updatePeriod = Duration.parse(updatePeriod);
+    public void setUpdatePeriod(@NotNull Duration updatePeriod) {
+        RefreshingVideoCache.updatePeriod = updatePeriod;
     }
 
     @PostConstruct
