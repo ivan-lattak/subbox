@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+subbox:
+  app:
+    name: SubBox
+  cache:
+    update-period: PT1M
+    eviction-threshold: P1D
+    videos-per-playlist: 100
